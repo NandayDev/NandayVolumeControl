@@ -1,7 +1,9 @@
 ﻿using CoreAudio;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 
 namespace NandayVolumeControl
 {
@@ -20,7 +22,6 @@ namespace NandayVolumeControl
             InitializeComponent();
             client = new(deviceEnumerator);
             InitializeDevices();
-            MouseDown += DragOnMouseDown;
             KeyDown += ExitOnEscPressed;
             Closing += OnClosing;
         }
@@ -43,8 +44,12 @@ namespace NandayVolumeControl
 
         private void DragOnMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            if (e.ChangedButton == MouseButton.Left)
-                DragMove();
+            try
+            {
+                if (e.ChangedButton == MouseButton.Left)
+                    DragMove();
+            }
+            catch { }
         }
 
         private void InitializeDevices(Device? newSpeakerDevice = null, Device? newMicrophoneDevice = null)
@@ -139,6 +144,29 @@ namespace NandayVolumeControl
         private void Client_DefaultDeviceChanged(object? sender, DefaultDeviceChangedEventArgs e)
         {
             InitializeDevices();
+        }
+
+        private void ContentControl_MouseEnter(object sender, MouseEventArgs e)
+        {
+            UpdateCloseImageSource(sender, "CloseImageMouseOver");
+        }
+
+        private static void UpdateCloseImageSource(object sender, string resourceName)
+        {
+            if (sender is ContentControl contentControl)
+            {
+                contentControl.Content = Application.Current.Resources[resourceName];
+            }
+        }
+
+        private void ContentControl_MouseLeave(object sender, MouseEventArgs e)
+        {
+            UpdateCloseImageSource(sender, "CloseImage");
+        }
+
+        private void ContentControl_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            Close();
         }
     }
 
