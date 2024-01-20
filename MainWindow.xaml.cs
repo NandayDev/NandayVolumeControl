@@ -86,15 +86,15 @@ namespace NandayVolumeControl
 
         private void OnComboBoxSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            deviceEnumerator.SetDefaultAudioEndpoint((e.AddedItems[0] as Device)!.mmDevice);
+            deviceEnumerator.SetDefaultAudioEndpoint((e.AddedItems[0] as Device)!.CoreAudioDevice);
         }
 
         private static void InitializeSlider(Device device, Slider slider)
         {
-            slider.Value = device.mmDevice.AudioEndpointVolume!.MasterVolumeLevelScalar;
+            slider.Value = device.CoreAudioDevice.AudioEndpointVolume!.MasterVolumeLevelScalar;
             slider.ValueChanged += delegate (object o, RoutedPropertyChangedEventArgs<double> value)
             {
-                device.mmDevice.AudioEndpointVolume.MasterVolumeLevelScalar = (float)value.NewValue;
+                device.CoreAudioDevice.AudioEndpointVolume.MasterVolumeLevelScalar = (float)value.NewValue;
             };
         }
 
