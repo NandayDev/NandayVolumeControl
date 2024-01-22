@@ -1,4 +1,5 @@
 ﻿using CoreAudio;
+using Microsoft.Win32;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
@@ -14,8 +15,7 @@ namespace NandayVolumeControl
     {
         private readonly MMDeviceEnumerator deviceEnumerator = new(Guid.NewGuid());
         private readonly MMNotificationClient client;
-        private Device? currentSpeaker = null;
-        private Device? currentMicrophone = null;
+        private Device? currentSpeaker, currentMicrophone;
 
         public MainWindow()
         {
@@ -24,6 +24,9 @@ namespace NandayVolumeControl
             InitializeDevices();
             KeyDown += ExitOnEscPressed;
             Closing += OnClosing;
+            volumeSlider.ValueChanged += VolumeSlider_ValueChanged;
+            microphoneSlider.ValueChanged += MicrophoneSlider_ValueChanged;
+            SystemEvents.PowerModeChanged += delegate { InitializeDevices(); };
         }
 
         private void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
@@ -59,8 +62,8 @@ namespace NandayVolumeControl
                 speakersComboBox.SelectionChanged -= OnComboBoxSelectionChanged;
                 microphoneComboBox.SelectionChanged -= OnComboBoxSelectionChanged;
                 RemoveDeviceCallbacks();
-                InitializeDeviceList(DataFlow.Render, speakersComboBox, newSpeakerDevice);
-                InitializeDeviceList(DataFlow.Capture, microphoneComboBox, newMicrophoneDevice);
+                currentSpeaker = GetCurrentDevice(DataFlow.Render, speakersComboBox, newSpeakerDevice);
+                currentMicrophone = GetCurrentDevice(DataFlow.Capture, microphoneComboBox, newMicrophoneDevice);
                 if (currentSpeaker == null || currentMicrophone == null)
                 {
                     throw new Exception("Speaker or microphone null");
@@ -73,7 +76,7 @@ namespace NandayVolumeControl
             });
         }
 
-        private void InitializeDeviceList(DataFlow dataFlow, ComboBox comboBox, Device? newDefaultDevice)
+        private Device? GetCurrentDevice(DataFlow dataFlow, ComboBox comboBox, Device? newDefaultDevice)
         {
             var nAudioDevices = deviceEnumerator.EnumerateAudioEndPoints(dataFlow, DeviceState.Active).ToDevices();
             comboBox.ItemsSource = nAudioDevices;
@@ -81,11 +84,11 @@ namespace NandayVolumeControl
             comboBox.SelectedIndex = nAudioDevices.IndexOf(nAudioDevices.First(d => d.Id == defaultDevice.Id));
             if (dataFlow == DataFlow.Render)
             {
-                currentSpeaker = defaultDevice;
+                return comboBox.SelectedItem as Device;
             }
             else
             {
-                currentMicrophone = defaultDevice;
+                return comboBox.SelectedItem as Device;
             }
         }
 
@@ -96,11 +99,26 @@ namespace NandayVolumeControl
 
         private static void InitializeSlider(Device device, Slider slider)
         {
-            slider.Value = device.CoreAudioDevice.AudioEndpointVolume!.MasterVolumeLevelScalar;
-            slider.ValueChanged += delegate (object o, RoutedPropertyChangedEventArgs<double> value)
+            if (device?.CoreAudioDevice?.AudioEndpointVolume is AudioEndpointVolume volume)
             {
-                device.CoreAudioDevice.AudioEndpointVolume.MasterVolumeLevelScalar = (float)value.NewValue;
-            };
+                slider.Value = volume.MasterVolumeLevelScalar;
+            }
+        }
+
+        private void VolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (currentSpeaker?.CoreAudioDevice?.AudioEndpointVolume is AudioEndpointVolume volume)
+            {
+                volume.MasterVolumeLevelScalar = (float)e.NewValue;
+            }
+        }
+
+        private void MicrophoneSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (currentMicrophone?.CoreAudioDevice?.AudioEndpointVolume is AudioEndpointVolume volume)
+            {
+                volume.MasterVolumeLevelScalar = (float)e.NewValue;
+            }
         }
 
         private void RemoveDeviceCallbacks()
@@ -128,12 +146,12 @@ namespace NandayVolumeControl
 
         private void Client_DeviceStateChanged(object? sender, DeviceStateChangedEventArgs e)
         {
-            InitializeDevices();
+            //InitializeDevices();
         }
 
         private void Client_DevicePropertyChanged(object? sender, DevicePropertyChangedEventArgs e)
         {
-            InitializeDevices();
+            //InitializeDevices();
         }
 
         private void Client_DeviceAdded(object? sender, DeviceNotificationEventArgs e)
@@ -143,6 +161,25 @@ namespace NandayVolumeControl
 
         private void Client_DefaultDeviceChanged(object? sender, DefaultDeviceChangedEventArgs e)
         {
+            switch (e.DataFlow)
+            {
+                case DataFlow.Render:
+                    if (e.TryGetDevice(out MMDevice? newDevice) && newDevice != null)
+                    {
+                        InitializeDevices(newSpeakerDevice: newDevice.ToDevice());
+                        return;
+                    }
+                    break;
+                case DataFlow.Capture:
+                    if (e.TryGetDevice(out newDevice) && newDevice != null)
+                    {
+                        InitializeDevices(newMicrophoneDevice: newDevice.ToDevice());
+                        return;
+                    }
+                    break;
+                case DataFlow.All:
+                    break;
+            }
             InitializeDevices();
         }
 
