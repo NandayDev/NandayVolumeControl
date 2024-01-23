@@ -97,12 +97,42 @@ namespace NandayVolumeControl
             deviceEnumerator.SetDefaultAudioEndpoint((e.AddedItems[0] as Device)!.CoreAudioDevice);
         }
 
-        private static void InitializeSlider(Device device, Slider slider)
+        private void InitializeSlider(Device device, Slider slider)
         {
             if (device?.CoreAudioDevice?.AudioEndpointVolume is AudioEndpointVolume volume)
             {
                 slider.Value = volume.MasterVolumeLevelScalar;
+                if (device.CoreAudioDevice.DataFlow == DataFlow.Render)
+                {
+                    volume.OnVolumeNotification -= Speaker_OnVolumeNotification;
+                    volume.OnVolumeNotification += Speaker_OnVolumeNotification;
+                }
+                else
+                {
+                    volume.OnVolumeNotification -= Microphone_OnVolumeNotification;
+                    volume.OnVolumeNotification += Microphone_OnVolumeNotification;
+                }
             }
+        }
+
+        private void Speaker_OnVolumeNotification(AudioVolumeNotificationData data)
+        {
+            Dispatcher.Invoke(delegate
+            {
+                volumeSlider.ValueChanged -= VolumeSlider_ValueChanged;
+                volumeSlider.Value = data.MasterVolume;
+                volumeSlider.ValueChanged += VolumeSlider_ValueChanged;
+            });
+        }
+
+        private void Microphone_OnVolumeNotification(AudioVolumeNotificationData data)
+        {
+            Dispatcher.Invoke(delegate
+            {
+                microphoneSlider.ValueChanged -= MicrophoneSlider_ValueChanged;
+                microphoneSlider.Value = data.MasterVolume;
+                microphoneSlider.ValueChanged += MicrophoneSlider_ValueChanged;
+            });
         }
 
         private void VolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
