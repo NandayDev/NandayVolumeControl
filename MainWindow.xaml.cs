@@ -231,6 +231,16 @@ namespace NandayVolumeControl
             UpdateCloseImageSource(sender, "CloseImage");
         }
 
+        private void CheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            Topmost = true;
+        }
+
+        private void CheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            Topmost = false;
+        }
+
         private void ContentControl_MouseDown(object sender, MouseButtonEventArgs e)
         {
             Close();
